@@ -28,19 +28,31 @@ jobs:
       - name: Install Snowflake CLI
         uses: snowflakedb/snowflake-cli-action@main
 
+      - name: Debug changed files
+        shell: bash
+        run: |
+          echo "before=${{ github.event.before }}"
+          echo "sha=${{ github.sha }}"
+          echo "Changed files:"
+          git diff --name-only "${{ github.event.before }}" "${{ github.sha }}"
+
       - name: Deploy SQL
         shell: bash
         run: |
-          FILES=$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" -- 'Snowflake/**/*.sql' || true)
+          FILES=$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" | grep '^Snowflake/.*\.sql$' || true)
 
           if [ -z "$FILES" ]; then
             echo "No SQL changes"
             exit 0
           fi
 
+          echo "SQL files to run:"
+          echo "$FILES"
+
           FILES_SORTED=$(echo "$FILES" | sort)
 
           while IFS= read -r file; do
+            [ -z "$file" ] && continue
             echo "Running $file"
             snow sql -x -f "$file"
           done <<< "$FILES_SORTED"
