@@ -1,0 +1,46 @@
+name: Deploy DEV
+
+on:
+  push:
+    branches:
+      - DEV
+
+jobs:
+  deploy-dev:
+    runs-on: ubuntu-latest
+
+    env:
+      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT_DEV }}
+      SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER_DEV }}
+      SNOWFLAKE_ROLE: CICD_ROLE
+      SNOWFLAKE_WAREHOUSE: CICD_WH
+      SNOWFLAKE_DATABASE: CICD_DEV_DB
+      SNOWFLAKE_PRIVATE_KEY_RAW: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_RAW_DEV }}
+      PRIVATE_KEY_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE_DEV }}
+      SNOWFLAKE_AUTHENTICATOR: SNOWFLAKE_JWT
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Snowflake CLI
+        uses: snowflakedb/snowflake-cli-action@v2
+
+      - name: Deploy changed SQL files
+        shell: bash
+        run: |
+          FILES=$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" -- 'Snowflake/**/*.sql' || true)
+
+          if [ -z "$FILES" ]; then
+            echo "No SQL changes found."
+            exit 0
+          fi
+
+          FILES_SORTED=$(echo "$FILES" | sort)
+
+          while IFS= read -r file; do
+            echo "Deploying $file"
+            snow sql -f "$file"
+          done <<< "$FILES_SORTED"
