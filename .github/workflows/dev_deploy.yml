@@ -1,4 +1,3 @@
-
 name: Deploy DEV
 
 on:
@@ -21,13 +20,16 @@ jobs:
       SNOWFLAKE_AUTHENTICATOR: SNOWFLAKE_JWT
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - uses: snowflakedb/snowflake-cli-action@main
+      - name: Install Snowflake CLI
+        uses: snowflakedb/snowflake-cli-action@main
 
       - name: Deploy SQL
+        shell: bash
         run: |
           FILES=$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" -- 'Snowflake/**/*.sql' || true)
 
@@ -36,7 +38,9 @@ jobs:
             exit 0
           fi
 
-          for file in $(echo "$FILES" | sort); do
+          FILES_SORTED=$(echo "$FILES" | sort)
+
+          while IFS= read -r file; do
             echo "Running $file"
-            snow sql -f "$file"
-          done
+            snow sql -x -f "$file"
+          done <<< "$FILES_SORTED"
