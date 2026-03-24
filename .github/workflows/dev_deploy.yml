@@ -20,27 +20,22 @@ jobs:
       SNOWFLAKE_AUTHENTICATOR: SNOWFLAKE_JWT
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Install Snowflake CLI
-        uses: snowflakedb/snowflake-cli-action@v2
+      - uses: snowflakedb/snowflake-cli-action@v2
 
-      - name: Deploy changed SQL files
-        shell: bash
+      - name: Deploy SQL
         run: |
           FILES=$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" -- 'Snowflake/**/*.sql' || true)
 
           if [ -z "$FILES" ]; then
-            echo "No SQL changes found."
+            echo "No SQL changes"
             exit 0
           fi
 
-          FILES_SORTED=$(echo "$FILES" | sort)
-
-          while IFS= read -r file; do
-            echo "Deploying $file"
+          for file in $(echo "$FILES" | sort); do
+            echo "Running $file"
             snow sql -f "$file"
-          done <<< "$FILES_SORTED"
+          done
