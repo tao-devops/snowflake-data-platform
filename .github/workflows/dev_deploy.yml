@@ -21,20 +21,24 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+
+      - name: Fix system time
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ntpdate
+          sudo ntpdate pool.ntp.org
+          date
 
       - name: Install Snowflake CLI
         uses: snowflakedb/snowflake-cli-action@v2.0
 
-      - name: Debug Snowflake settings
+      - name: Test connection (with retry)
         run: |
-          echo "ACCOUNT=$SNOWFLAKE_ACCOUNT"
-          echo "USER=$SNOWFLAKE_USER"
-
-      - name: Test Snowflake connection
-        run: |
-          snow connection test --temporary-connection --debug
+          for i in {1..3}; do
+            snow connection test --temporary-connection --debug && break
+            echo "Retry $i..."
+            sleep 2
+          done
 
       - name: Deploy SQL
         run: |
