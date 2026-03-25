@@ -33,3 +33,4 @@ CREATE OR REPLACE TABLE CICD_DEV_DB.CORE.CUSTOMERS (
 --fdgooasdd
 --fdgooasdd
 -- rerun table
+-- rerun table

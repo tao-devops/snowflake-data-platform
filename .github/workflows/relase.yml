@@ -1,0 +1,196 @@
+# .github/workflows/snowflake_deploy.yml
+
+name: Snowflake Deploy
+
+on:
+  push:
+    branches:
+      - dev
+      - preprod
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: snowflake-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-dev:
+    if: github.ref_name == 'dev'
+    name: Deploy to Snowflake DEV
+    runs-on: ubuntu-latest
+
+    env:
+      SNOWFLAKE_ACCOUNT: dvmfrac-bj63182
+      SNOWFLAKE_USER: CICD_USER
+      SNOWFLAKE_ROLE: CICD_ROLE
+      SNOWFLAKE_WAREHOUSE: CICD_WH
+      SNOWFLAKE_DATABASE: CICD_DEV_DB
+      SNOWFLAKE_PRIVATE_KEY_RAW: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_RAW_DEV }}
+      PRIVATE_KEY_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE_DEV }}
+      SNOWFLAKE_AUTHENTICATOR: 'SNOWFLAKE_JWT'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Snow CLI
+        uses: snowflakedb/snowflake-cli-action@v1.5
+
+      - name: Print config
+        run: |
+          echo "BRANCH=${{ github.ref_name }}"
+          echo "ACCOUNT=$SNOWFLAKE_ACCOUNT"
+          echo "USER=$SNOWFLAKE_USER"
+          echo "ROLE=$SNOWFLAKE_ROLE"
+          echo "WAREHOUSE=$SNOWFLAKE_WAREHOUSE"
+          echo "DATABASE=$SNOWFLAKE_DATABASE"
+
+      - name: Test connection
+        run: |
+          snow --version
+          snow sql -q "SELECT CURRENT_USER(), CURRENT_ROLE(), CURRENT_WAREHOUSE(), CURRENT_DATABASE()" --temporary-connection
+          snow sql -q "SELECT 'DEV connection successful!' as TEST_MESSAGE" --temporary-connection
+
+      - name: Deploy changed SQL files
+        shell: bash
+        run: |
+          FILES=$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" | grep '^Snowflake/.*\.sql$' || true)
+
+          if [ -z "$FILES" ]; then
+            echo "No SQL changes"
+            exit 0
+          fi
+
+          echo "SQL files to run:"
+          echo "$FILES"
+
+          FILES_SORTED=$(printf '%s\n' "$FILES" | sort)
+
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            echo "Running $file"
+            snow sql -f "$file" --temporary-connection
+          done <<< "$FILES_SORTED"
+
+  deploy-preprod:
+    if: github.ref_name == 'preprod'
+    name: Deploy to Snowflake PREPROD
+    runs-on: ubuntu-latest
+
+    env:
+      SNOWFLAKE_ACCOUNT: dvmfrac-bj63182
+      SNOWFLAKE_USER: CICD_USER
+      SNOWFLAKE_ROLE: CICD_ROLE
+      SNOWFLAKE_WAREHOUSE: CICD_WH
+      SNOWFLAKE_DATABASE: CICD_PREPROD_DB
+      SNOWFLAKE_PRIVATE_KEY_RAW: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_RAW_PREPROD }}
+      PRIVATE_KEY_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE_PREPROD }}
+      SNOWFLAKE_AUTHENTICATOR: 'SNOWFLAKE_JWT'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Snow CLI
+        uses: snowflakedb/snowflake-cli-action@v1.5
+
+      - name: Print config
+        run: |
+          echo "BRANCH=${{ github.ref_name }}"
+          echo "ACCOUNT=$SNOWFLAKE_ACCOUNT"
+          echo "USER=$SNOWFLAKE_USER"
+          echo "ROLE=$SNOWFLAKE_ROLE"
+          echo "WAREHOUSE=$SNOWFLAKE_WAREHOUSE"
+          echo "DATABASE=$SNOWFLAKE_DATABASE"
+
+      - name: Test connection
+        run: |
+          snow --version
+          snow sql -q "SELECT CURRENT_USER(), CURRENT_ROLE(), CURRENT_WAREHOUSE(), CURRENT_DATABASE()" --temporary-connection
+          snow sql -q "SELECT 'PREPROD connection successful!' as TEST_MESSAGE" --temporary-connection
+
+      - name: Deploy changed SQL files
+        shell: bash
+        run: |
+          FILES=$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" | grep '^Snowflake/.*\.sql$' || true)
+
+          if [ -z "$FILES" ]; then
+            echo "No SQL changes"
+            exit 0
+          fi
+
+          echo "SQL files to run:"
+          echo "$FILES"
+
+          FILES_SORTED=$(printf '%s\n' "$FILES" | sort)
+
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            echo "Running $file"
+            snow sql -f "$file" --temporary-connection
+          done <<< "$FILES_SORTED"
+
+  deploy-prod:
+    if: github.ref_name == 'main'
+    name: Deploy to Snowflake PROD
+    runs-on: ubuntu-latest
+
+    env:
+      SNOWFLAKE_ACCOUNT: dvmfrac-bj63182
+      SNOWFLAKE_USER: CICD_USER
+      SNOWFLAKE_ROLE: CICD_ROLE
+      SNOWFLAKE_WAREHOUSE: CICD_WH
+      SNOWFLAKE_DATABASE: CICD_PROD_DB
+      SNOWFLAKE_PRIVATE_KEY_RAW: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_RAW_PROD }}
+      PRIVATE_KEY_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE_PROD }}
+      SNOWFLAKE_AUTHENTICATOR: 'SNOWFLAKE_JWT'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Snow CLI
+        uses: snowflakedb/snowflake-cli-action@v1.5
+
+      - name: Print config
+        run: |
+          echo "BRANCH=${{ github.ref_name }}"
+          echo "ACCOUNT=$SNOWFLAKE_ACCOUNT"
+          echo "USER=$SNOWFLAKE_USER"
+          echo "ROLE=$SNOWFLAKE_ROLE"
+          echo "WAREHOUSE=$SNOWFLAKE_WAREHOUSE"
+          echo "DATABASE=$SNOWFLAKE_DATABASE"
+
+      - name: Test connection
+        run: |
+          snow --version
+          snow sql -q "SELECT CURRENT_USER(), CURRENT_ROLE(), CURRENT_WAREHOUSE(), CURRENT_DATABASE()" --temporary-connection
+          snow sql -q "SELECT 'PROD connection successful!' as TEST_MESSAGE" --temporary-connection
+
+      - name: Deploy changed SQL files
+        shell: bash
+        run: |
+          FILES=$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" | grep '^Snowflake/.*\.sql$' || true)
+
+          if [ -z "$FILES" ]; then
+            echo "No SQL changes"
+            exit 0
+          fi
+
+          echo "SQL files to run:"
+          echo "$FILES"
+
+          FILES_SORTED=$(printf '%s\n' "$FILES" | sort)
+
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            echo "Running $file"
+            snow sql -f "$file" --temporary-connection
+          done <<< "$FILES_SORTED"
