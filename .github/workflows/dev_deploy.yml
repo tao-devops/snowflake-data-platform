@@ -12,11 +12,12 @@ jobs:
     env:
       SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT_DEV }}
       SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER_DEV }}
+      SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USER_DEV }}
       SNOWFLAKE_ROLE: CICD_ROLE
       SNOWFLAKE_WAREHOUSE: CICD_WH
       SNOWFLAKE_DATABASE: CICD_DEV_DB
-      SNOWFLAKE_AUTHENTICATOR: SNOWFLAKE_JWT
       SNOWFLAKE_PRIVATE_KEY_RAW: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_RAW_DEV }}
+      SNOWFLAKE_AUTHENTICATOR: SNOWFLAKE_JWT
 
     steps:
       - name: Checkout code
@@ -25,13 +26,29 @@ jobs:
           fetch-depth: 0
 
       - name: Install Snowflake CLI
-        uses: snowflakedb/snowflake-cli-action@v2.0
+        uses: snowflakedb/snowflake-cli-action@main
+
+      - name: Print non-secret settings
+        shell: bash
+        run: |
+          echo "SNOWFLAKE_ACCOUNT=$SNOWFLAKE_ACCOUNT"
+          echo "SNOWFLAKE_USER=$SNOWFLAKE_USER"
+          echo "SNOWFLAKE_USERNAME=$SNOWFLAKE_USERNAME"
+          echo "SNOWFLAKE_ROLE=$SNOWFLAKE_ROLE"
+          echo "SNOWFLAKE_WAREHOUSE=$SNOWFLAKE_WAREHOUSE"
+          echo "SNOWFLAKE_DATABASE=$SNOWFLAKE_DATABASE"
+
+      - name: Validate secret presence
+        shell: bash
+        run: |
+          [ -n "$SNOWFLAKE_PRIVATE_KEY_RAW" ] || { echo "Missing private key"; exit 1; }
+          echo "Secrets are present"
 
       - name: Test Snowflake connection
         shell: bash
         run: |
           snow --version
-          snow connection test --temporary-connection --debug
+          snow connection test -x --debug
 
       - name: Deploy SQL
         shell: bash
@@ -44,9 +61,12 @@ jobs:
           fi
 
           echo "SQL files to run:"
-          echo "$FILES" | sort
+          echo "$FILES"
+
+          FILES_SORTED=$(echo "$FILES" | sort)
 
           while IFS= read -r file; do
+            [ -z "$file" ] && continue
             echo "Running $file"
-            snow sql --temporary-connection -f "$file"
-          done <<< "$(echo "$FILES" | sort)"
+            snow sql -x -f "$file"
+          done <<< "$FILES_SORTED"
