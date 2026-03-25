@@ -17,6 +17,7 @@ jobs:
       SNOWFLAKE_DATABASE: CICD_DEV_DB
       SNOWFLAKE_PRIVATE_KEY_RAW: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_RAW_DEV }}
       PRIVATE_KEY_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE_DEV }}
+      SNOWFLAKE_AUTHENTICATOR: 'SNOWFLAKE_JWT'
 
     steps:
       - name: Checkout code
@@ -24,40 +25,16 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Snowflake CLI
-        uses: snowflakedb/snowflake-cli-action@main
+      - name: Setup Snow CLI
+        uses: snowflakedb/snowflake-cli-action@v1.5
 
-      - name: Write private key
-        shell: bash
-        run: |
-          cat > key.p8 <<'EOF'
-          ${{ secrets.SNOWFLAKE_PRIVATE_KEY_RAW_DEV }}
-          EOF
-          chmod 600 key.p8
-
-      - name: Print non-secret settings
-        shell: bash
-        run: |
-          echo "SNOWFLAKE_ACCOUNT=$SNOWFLAKE_ACCOUNT"
-          echo "SNOWFLAKE_USER=$SNOWFLAKE_USER"
-          echo "SNOWFLAKE_ROLE=$SNOWFLAKE_ROLE"
-          echo "SNOWFLAKE_WAREHOUSE=$SNOWFLAKE_WAREHOUSE"
-          echo "SNOWFLAKE_DATABASE=$SNOWFLAKE_DATABASE"
-
-      - name: Test Snowflake connection
-        shell: bash
+      - name: Verify Snow CLI
         run: |
           snow --version
-          snow connection test \
-            --temporary-connection \
-            --account "$SNOWFLAKE_ACCOUNT" \
-            --user "$SNOWFLAKE_USER" \
-            --role "$SNOWFLAKE_ROLE" \
-            --warehouse "$SNOWFLAKE_WAREHOUSE" \
-            --database "$SNOWFLAKE_DATABASE" \
-            --authenticator SNOWFLAKE_JWT \
-            --private-key-path key.p8 \
-            --debug
+
+      - name: Test Snowflake connection
+        run: |
+          snow sql -q "SELECT CURRENT_USER(), CURRENT_ROLE(), CURRENT_WAREHOUSE(), CURRENT_DATABASE()" --temporary-connection
 
       - name: Deploy SQL
         shell: bash
@@ -77,14 +54,5 @@ jobs:
           while IFS= read -r file; do
             [ -z "$file" ] && continue
             echo "Running $file"
-            snow sql \
-              --temporary-connection \
-              --account "$SNOWFLAKE_ACCOUNT" \
-              --user "$SNOWFLAKE_USER" \
-              --role "$SNOWFLAKE_ROLE" \
-              --warehouse "$SNOWFLAKE_WAREHOUSE" \
-              --database "$SNOWFLAKE_DATABASE" \
-              --authenticator SNOWFLAKE_JWT \
-              --private-key-path key.p8 \
-              -f "$file"
+            snow sql -f "$file" --temporary-connection
           done <<< "$FILES_SORTED"
