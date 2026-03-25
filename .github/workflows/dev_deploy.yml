@@ -1,61 +1,34 @@
-name: Deploy DEV
+# .github/workflows/test-connection.yml
+
+name: Test Snowflake Connection
 
 on:
-  push:
-    branches:
-      - dev
+  workflow_dispatch:
 
 jobs:
-  deploy-dev:
+  test-snowflake-connection:
+    name: Test Connection to Snowflake
     runs-on: ubuntu-latest
 
     env:
-      SNOWFLAKE_ACCOUNT: dvmfrac-bj63182
+      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT_DEV }}
       SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER_DEV }}
       SNOWFLAKE_ROLE: CICD_ROLE
       SNOWFLAKE_WAREHOUSE: CICD_WH
       SNOWFLAKE_DATABASE: CICD_DEV_DB
-      SNOWFLAKE_AUTHENTICATOR: SNOWFLAKE_JWT
       SNOWFLAKE_PRIVATE_KEY_RAW: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_RAW_DEV }}
+      PRIVATE_KEY_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE_DEV }}
+      SNOWFLAKE_AUTHENTICATOR: 'SNOWFLAKE_JWT'
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - name: Setup Snow CLI
+        uses: snowflakedb/snowflake-cli-action@v1.5
 
-      - name: Install Snowflake CLI
-        uses: snowflakedb/snowflake-cli-action@v2.0
-
-      - name: Prepare Snowflake private key
-        shell: bash
+      - name: Run test queries
         run: |
-          printf "%b" "$SNOWFLAKE_PRIVATE_KEY_RAW" > /tmp/snowflake_key.p8
-          chmod 600 /tmp/snowflake_key.p8
-          echo "SNOWFLAKE_PRIVATE_KEY_PATH=/tmp/snowflake_key.p8" >> $GITHUB_ENV
-          head -2 /tmp/snowflake_key.p8
-          tail -2 /tmp/snowflake_key.p8
-
-      - name: Test Snowflake connection
-        shell: bash
-        run: |
+          echo "Verifying Snow CLI installation..."
           snow --version
-          snow connection test --temporary-connection --debug
 
-      - name: Deploy SQL
-        shell: bash
-        run: |
-          FILES=$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" | grep '^Snowflake/.*\.sql$' || true)
-
-          if [ -z "$FILES" ]; then
-            echo "No SQL changes"
-            exit 0
-          fi
-
-          echo "SQL files to run:"
-          echo "$FILES" | sort
-
-          while IFS= read -r file; do
-            echo "Running $file"
-            snow sql --temporary-connection -f "$file"
-          done <<< "$(echo "$FILES" | sort)"
+          echo "Testing connection and running queries..."
+          snow sql -q "SELECT CURRENT_USER(), CURRENT_ROLE(), CURRENT_WAREHOUSE(), CURRENT_DATABASE()" --temporary-connection
+          snow sql -q "SELECT 'Connection successful!' as TEST_MESSAGE" --temporary-connection
