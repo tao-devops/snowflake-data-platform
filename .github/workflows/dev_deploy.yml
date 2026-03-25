@@ -22,6 +22,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install Snowflake CLI
         uses: snowflakedb/snowflake-cli-action@main
@@ -42,7 +44,48 @@ jobs:
           [ -n "$PRIVATE_KEY_PASSPHRASE" ] || { echo "Missing passphrase"; exit 1; }
           echo "Secrets are present"
 
-      - name: Test Snowflake connection
+      - name: Show runner time
         shell: bash
         run: |
-          snow connection test -x --debug
+          date -u
+          timedatectl || true
+
+      - name: Test Snowflake connection with retry
+        shell: bash
+        run: |
+          success=0
+          for i in 1 2 3; do
+            echo "Connection test attempt $i"
+            if snow connection test -x --debug; then
+              success=1
+              break
+            fi
+            echo "Connection test failed, waiting before retry..."
+            sleep 5
+          done
+
+          if [ "$success" -ne 1 ]; then
+            echo "Snowflake connection test failed after 3 attempts"
+            exit 1
+          fi
+
+      - name: Deploy SQL
+        shell: bash
+        run: |
+          FILES=$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" | grep '^Snowflake/.*\.sql$' || true)
+
+          if [ -z "$FILES" ]; then
+            echo "No SQL changes"
+            exit 0
+          fi
+
+          echo "SQL files to run:"
+          echo "$FILES"
+
+          FILES_SORTED=$(echo "$FILES" | sort)
+
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            echo "Running $file"
+            snow sql -x -f "$file"
+          done <<< "$FILES_SORTED"
