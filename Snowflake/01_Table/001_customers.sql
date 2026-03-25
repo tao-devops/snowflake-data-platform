@@ -7,3 +7,4 @@ CREATE OR REPLACE TABLE CICD_DEV_DB.CORE.CUSTOMERS (
 -- trigger deploy again
 -- test after key update
 -- test after key update
+-- test after key update2

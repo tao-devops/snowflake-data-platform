@@ -22,26 +22,27 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Install Snowflake CLI
         uses: snowflakedb/snowflake-cli-action@main
 
-      - name: Deploy SQL
+      - name: Print non-secret settings
         shell: bash
         run: |
-          FILES=$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" | grep '^Snowflake/.*\.sql$' || true)
+          echo "SNOWFLAKE_ACCOUNT=$SNOWFLAKE_ACCOUNT"
+          echo "SNOWFLAKE_USER=$SNOWFLAKE_USER"
+          echo "SNOWFLAKE_ROLE=$SNOWFLAKE_ROLE"
+          echo "SNOWFLAKE_WAREHOUSE=$SNOWFLAKE_WAREHOUSE"
+          echo "SNOWFLAKE_DATABASE=$SNOWFLAKE_DATABASE"
 
-          if [ -z "$FILES" ]; then
-            echo "No SQL changes"
-            exit 0
-          fi
+      - name: Validate secret presence
+        shell: bash
+        run: |
+          [ -n "$SNOWFLAKE_PRIVATE_KEY_RAW" ] || { echo "Missing private key"; exit 1; }
+          [ -n "$PRIVATE_KEY_PASSPHRASE" ] || { echo "Missing passphrase"; exit 1; }
+          echo "Secrets are present"
 
-          echo "SQL files to run:"
-          echo "$FILES" | sort
-
-          while IFS= read -r file; do
-            echo "Running $file"
-            snow sql -x -f "$file"
-          done <<< "$(echo "$FILES" | sort)"
+      - name: Test Snowflake connection
+        shell: bash
+        run: |
+          snow connection test -x --debug
