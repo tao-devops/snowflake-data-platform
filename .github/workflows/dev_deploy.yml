@@ -3,10 +3,10 @@
 name: Test Snowflake Connection
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - dev
-  workflow_dispatch:
 
 jobs:
   test-snowflake-connection:
@@ -15,17 +15,25 @@ jobs:
 
     env:
       SNOWFLAKE_ACCOUNT: dvmfrac-bj63182
-      SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER_DEV }}
+      SNOWFLAKE_USER: CICD_USER
       SNOWFLAKE_ROLE: CICD_ROLE
       SNOWFLAKE_WAREHOUSE: CICD_WH
       SNOWFLAKE_DATABASE: CICD_DEV_DB
       SNOWFLAKE_PRIVATE_KEY_RAW: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_RAW_DEV }}
       PRIVATE_KEY_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE_DEV }}
-      SNOWFLAKE_AUTHENTICATOR: 'SNOWFLAKE_JWT'
+      SNOWFLAKE_AUTHENTICATOR: SNOWFLAKE_JWT
 
     steps:
       - name: Setup Snow CLI
         uses: snowflakedb/snowflake-cli-action@v1.5
+
+      - name: Print config
+        run: |
+          echo "ACCOUNT=$SNOWFLAKE_ACCOUNT"
+          echo "USER=$SNOWFLAKE_USER"
+          echo "ROLE=$SNOWFLAKE_ROLE"
+          echo "WAREHOUSE=$SNOWFLAKE_WAREHOUSE"
+          echo "DATABASE=$SNOWFLAKE_DATABASE"
 
       - name: Run test queries
         run: |
