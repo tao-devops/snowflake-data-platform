@@ -1,8 +1,9 @@
-# .github/workflows/test-connection.yml
-
 name: Test Snowflake Connection
 
 on:
+  push:
+    branches:
+      - dev
   workflow_dispatch:
 
 jobs:
