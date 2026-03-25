@@ -19,3 +19,4 @@ CREATE OR REPLACE TABLE CICD_DEV_DB.CORE.CUSTOMERS (
 --good
 --fdgoo
 --fdgoosdsd
+--fdgoosdsd

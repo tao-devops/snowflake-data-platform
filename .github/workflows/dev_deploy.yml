@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT_DEV }}
+      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT_DEV }}   # bj63182.eu-central-1
       SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER_DEV }}
       SNOWFLAKE_ROLE: CICD_ROLE
       SNOWFLAKE_WAREHOUSE: CICD_WH
@@ -27,11 +27,23 @@ jobs:
       - name: Install Snowflake CLI
         uses: snowflakedb/snowflake-cli-action@v2.0
 
-      - name: Test connection
+      - name: Debug Snowflake settings
+        shell: bash
         run: |
+          echo "ACCOUNT=$SNOWFLAKE_ACCOUNT"
+          echo "USER=$SNOWFLAKE_USER"
+          echo "ROLE=$SNOWFLAKE_ROLE"
+          echo "WAREHOUSE=$SNOWFLAKE_WAREHOUSE"
+          echo "DATABASE=$SNOWFLAKE_DATABASE"
+
+      - name: Test Snowflake connection
+        shell: bash
+        run: |
+          snow --version
           snow connection test --temporary-connection --debug
 
       - name: Deploy SQL
+        shell: bash
         run: |
           FILES=$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" | grep '^Snowflake/.*\.sql$' || true)
 
