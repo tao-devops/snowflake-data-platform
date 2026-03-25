@@ -15,3 +15,4 @@ CREATE OR REPLACE TABLE CICD_DEV_DB.CORE.CUSTOMERS (
 -- test after key fix nosdw
 -- test after key fdfdsfix nosdw
 -- test dsfafter key fdfdsfix nosdw
+-- test dsfafter key fdfdsfix nosddsfsdafw
