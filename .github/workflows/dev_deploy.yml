@@ -1,16 +1,16 @@
-# .github/workflows/test-connection.yml
+# .github/workflows/dev_deploy.yml
 
-name: Test Snowflake Connection
+name: Deploy DEV
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - dev
+  workflow_dispatch:
 
 jobs:
-  test-snowflake-connection:
-    name: Test Connection to Snowflake
+  deploy-dev:
+    name: Deploy to Snowflake DEV
     runs-on: ubuntu-latest
 
     env:
@@ -21,9 +21,14 @@ jobs:
       SNOWFLAKE_DATABASE: CICD_DEV_DB
       SNOWFLAKE_PRIVATE_KEY_RAW: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_RAW_DEV }}
       PRIVATE_KEY_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE_DEV }}
-      SNOWFLAKE_AUTHENTICATOR: SNOWFLAKE_JWT
+      SNOWFLAKE_AUTHENTICATOR: 'SNOWFLAKE_JWT'
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Setup Snow CLI
         uses: snowflakedb/snowflake-cli-action@v1.5
 
@@ -35,7 +40,7 @@ jobs:
           echo "WAREHOUSE=$SNOWFLAKE_WAREHOUSE"
           echo "DATABASE=$SNOWFLAKE_DATABASE"
 
-      - name: Run test queries
+      - name: Test connection
         run: |
           echo "Verifying Snow CLI installation..."
           snow --version
@@ -43,3 +48,24 @@ jobs:
           echo "Testing connection and running queries..."
           snow sql -q "SELECT CURRENT_USER(), CURRENT_ROLE(), CURRENT_WAREHOUSE(), CURRENT_DATABASE()" --temporary-connection
           snow sql -q "SELECT 'Connection successful!' as TEST_MESSAGE" --temporary-connection
+
+      - name: Deploy changed SQL files
+        shell: bash
+        run: |
+          FILES=$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" | grep '^Snowflake/.*\.sql$' || true)
+
+          if [ -z "$FILES" ]; then
+            echo "No SQL changes"
+            exit 0
+          fi
+
+          echo "SQL files to run:"
+          echo "$FILES"
+
+          FILES_SORTED=$(printf '%s\n' "$FILES" | sort)
+
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            echo "Running $file"
+            snow sql -f "$file" --temporary-connection
+          done <<< "$FILES_SORTED"
