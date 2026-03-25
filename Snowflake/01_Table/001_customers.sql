@@ -17,3 +17,4 @@ CREATE OR REPLACE TABLE CICD_DEV_DB.CORE.CUSTOMERS (
 -- test dsfafter key fdfdsfix nosdw
 -- test dsfafter key fdfdsfix nosddsfsdafw
 --good
+--fdgoo
