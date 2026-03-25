@@ -10,3 +10,4 @@ CREATE OR REPLACE TABLE CICD_DEV_DB.CORE.CUSTOMERS (
 -- test after key update2
 -- test after key update3
 -- test after key update4
+-- test after key fix
