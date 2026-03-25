@@ -29,3 +29,4 @@ CREATE OR REPLACE TABLE CICD_DEV_DB.CORE.CUSTOMERS (
 --fdgoosdsd
 --fdgooasdd
 --fdgooasdd
+--fdgooasdd

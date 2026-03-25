@@ -1,3 +1,5 @@
+# .github/workflows/test-connection.yml
+
 name: Test Snowflake Connection
 
 on:
@@ -12,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT_DEV }}
+      SNOWFLAKE_ACCOUNT: dvmfrac-bj63182
       SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER_DEV }}
       SNOWFLAKE_ROLE: CICD_ROLE
       SNOWFLAKE_WAREHOUSE: CICD_WH
